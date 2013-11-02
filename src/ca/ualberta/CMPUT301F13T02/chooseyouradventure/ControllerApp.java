@@ -38,6 +38,8 @@ import android.app.Application;
  */
 public class ControllerApp extends Application{
 
+	private boolean isEditing = false;
+	
 	private Story currentStory;
 	private Page currentPage;
 	private ArrayList<Story> stories;
@@ -94,4 +96,20 @@ public class ControllerApp extends Application{
 		currentPage.addComment(comment);
 	}
 	
+	public boolean isEditing() {
+		return isEditing;
+	}
+	
+	public void setEditing(boolean editing) {
+		isEditing = editing;
+	}
+	
+	public void saveStory() {
+		currentStory.save();
+	}
+	
+	public void deleteTile(int whichTile) {
+		ArrayList<Tile> tiles = currentPage.getTiles();
+		tiles.remove(whichTile);
+	}
 }

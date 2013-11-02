@@ -71,6 +71,9 @@ import android.widget.TextView;
 
 public class ViewPageActivity extends Activity {
 	
+	private final int EDIT_INDEX = 0;
+	private final int SAVE_INDEX = 1;
+	
 	private LinearLayout tilesLayout;
 	private LinearLayout decisionsLayout;
 	private LinearLayout commentsLayout;
@@ -186,11 +189,11 @@ public class ViewPageActivity extends Activity {
      * @param menu The Menu to make
      */
 	public void makeMenu(Menu menu) {
-		MenuItem editPage = menu.add(0, 0, 0, "Edit");
+		MenuItem editPage = menu.add(0, EDIT_INDEX, EDIT_INDEX, "Edit");
 		{
 			editPage.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
 		}
-		MenuItem savePage = menu.add(0, 1, 1, "Save");
+		MenuItem savePage = menu.add(0, SAVE_INDEX, SAVE_INDEX, "Save");
 		{
 			savePage.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
 		}
@@ -203,35 +206,38 @@ public class ViewPageActivity extends Activity {
 	 * @throws HandlerException 
 	 */
 	private boolean menuItemClicked(MenuItem item) throws HandlerException {
-		MenuItem editButton = menu.findItem(0);
-		MenuItem doneButton = menu.findItem(1);
 		switch (item.getItemId()) {
 		case 0:
-			this.isEditing = true;
+			app.setEditing(true);
 			displayPage();
-			doneButton.setVisible(true);
-			editButton.setVisible(false);
+			changeActionBarButtons();
 			break;
 		case 1:
-			this.isEditing = false;
+			app.setEditing(false);
 			displayPage();
-			
-			ESHandler eshandler = new ESHandler();
-			Story currentStory = app.getStory();
-				try
-				{
-					eshandler.updateStory(currentStory);
-				} catch (Exception e)
-				{
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				
-			doneButton.setVisible(false);
-			editButton.setVisible(true);
+			app.saveStory();
+			changeActionBarButtons();
 			break;
 		}
 		return true;
+	} 
+	
+	/**
+	 * If the user is in editing mode, show the save button and hide the edit
+	 * button. If the user is in viewing mode, show the edit button and hide
+	 * the save button.
+	 */
+	private void changeActionBarButtons() {
+		MenuItem editButton = menu.findItem(0);
+		MenuItem saveButton = menu.findItem(1);
+		
+		if(app.isEditing()) {
+			saveButton.setVisible(true);
+			editButton.setVisible(false);
+		} else {
+			saveButton.setVisible(false);
+			editButton.setVisible(true);
+		}
 	}
 	
 	/**
@@ -246,40 +252,23 @@ public class ViewPageActivity extends Activity {
 		
 		displayPageEnding(page);
 		
+		//For each tile in the page, add the tile to tilesLayout
 		ArrayList<Tile> tiles = page.getTiles();
 		for (int i = 0; i < tiles.size(); i++) {
 			addTile(i, tiles.get(i));
 		}
 		
+		//For each decision in the page, add it to decisionsLayout
 		ArrayList<Decision> decisions = page.getDecisions();
 		for (int i = 0; i < decisions.size(); i++) {
 			addDecision(i, decisions.get(i));
 		}
 		
-		// Third ListView. Used for the Comments. Maybe don't show while editing
+		//For each comment in the page, add it to commentsLayout
 		ArrayList<Comment> comments = page.getComments();
 		for (int i = 0; i < comments.size(); i++) {
 			addComment(comments.get(i));
 		}
-	}
-	
-	/**
-	 * Adds the pageEnding from the passed page object to the pageEnding
-	 * view of ViewPageActivity.
-	 * @param page
-	 */
-	public void displayPageEnding(Page page) {
-		TextView pageEnding = (TextView) findViewById(R.id.pageEnding);
-		pageEnding.setText(page.getPageEnding());
-	}
-	
-	/**
-	 * Clears all the layouts on the page.
-	 */
-	private void clearPage() {
-		tilesLayout.removeAllViews();
-		decisionsLayout.removeAllViews();
-		commentsLayout.removeAllViews();
 	}
 	
 	/**
@@ -300,7 +289,26 @@ public class ViewPageActivity extends Activity {
 		addTileButton.setVisibility(visibility);
 		addDecisionButton.setVisibility(visibility);
 	}
-
+	
+	/**
+	 * Clears all the layouts on the page.
+	 */
+	private void clearPage() {
+		tilesLayout.removeAllViews();
+		decisionsLayout.removeAllViews();
+		commentsLayout.removeAllViews();
+	}
+	
+	/**
+	 * Adds the pageEnding from the passed page object to the pageEnding
+	 * view of ViewPageActivity.
+	 * @param page
+	 */
+	private void displayPageEnding(Page page) {
+		TextView pageEnding = (TextView) findViewById(R.id.pageEnding);
+		pageEnding.setText(page.getPageEnding());
+	}
+	
 	private void onEditPageEnding(View view) {
 		if (isEditing) {
 			final TextView textView = (TextView) view;
@@ -322,6 +330,147 @@ public class ViewPageActivity extends Activity {
 		}
 	}
 
+	
+	/**
+	 * Called to display a new tile at position i. If we are in editing mode,
+	 * add a click listener to allow user to edit the tile
+	 * @param i
+	 * @param tile
+	 */
+	public void addTile(int i, Tile tile) {
+		
+		View view = makeTileView();
+		
+		if (tile.getType() == "text") {
+			TextTile textTile = (TextTile) tile;
+			TextView textView = (TextView) view;
+			
+			textView.setText(textTile.getText());
+
+			tilesLayout.addView(textView, i);
+			
+			if (isEditing) {
+				textView.setOnClickListener(new OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						tileMenu(v);
+					}
+				});
+			}
+			
+		} else if (tile.getType() == "photo") {
+			// TODO Implement for part 4
+		} else if (tile.getType() == "video") {
+			// TODO Implement for part 4
+		} else if (tile.getType() == "audio") {
+			// TODO Implement for part 4
+		} else {
+			Log.d("no such tile", "no tile of type " + tile.getType());
+		}
+	}
+	
+	/**
+	 * Create a view that has the proper padding, and if we are in editing
+	 * mode, adds a small margin to the bottom so we can see a little of 
+	 * the layout background which makes a line separating the tile views.
+	 * @return
+	 */
+	private View makeTileView() {
+		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+		View view = new View(this);
+
+		// Set what the tiles look like
+		view.setPadding(0, 5, 0, 6);
+		if (isEditing) {
+			/* Background to the layout is grey, so adding margins adds 
+			 * separators.
+			 */
+			lp.setMargins(0, 0, 0, 3);
+		} else {
+			view.setPadding(0, 5, 0, 9);
+		}
+		view.setBackgroundColor(0xFFFFFFFF);
+		view.setLayoutParams(lp);
+		
+		return view;
+	}
+	
+	/**
+	 * Brings up a menu with options of what to do to the decision.
+	 * @param view
+	 */
+	public void tileMenu(final View view){
+		final String[] titles = {"Edit","Delete"};
+		
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.story_options);
+        builder.setItems(titles, new DialogInterface.OnClickListener() {
+        	
+            public void onClick(DialogInterface dialog, int item) {
+            	switch(item){
+            	case(0):
+            		onEditTile(view);
+            		break;
+            	case(1):
+            		deleteTile(view);
+            		break;
+            	}
+            }
+            
+        });
+        builder.show();
+    }
+	
+	/**
+	 * Removes the decision view and the decision in the model.
+	 * @param view
+	 */
+	private void deleteTile(View view) {
+		int whichTile = tilesLayout.indexOfChild(view);
+
+        app.deleteTile(whichTile);
+        tilesLayout.removeView(view);
+	}
+	
+	/**
+	 * Displays a dialog for editing a tile.
+	 * @param view
+	 */
+	private void onEditTile(View view) {
+		final TextView textView = (TextView) view;
+    	AlertDialog.Builder builder = new AlertDialog.Builder(this);
+    	final EditText alertEdit = new EditText(this);
+    	alertEdit.setText(textView.getText().toString());
+    	builder.setView(alertEdit);
+    	builder.setPositiveButton("Done", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+            	onDoneTile(textView, alertEdit.getText().toString());
+            	
+            }
+        })
+        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                
+            }
+        });
+        builder.show();
+	}
+	
+	/**
+	 * Called when user selects done on a tile editing dialog. Updates the 
+	 * view and the model.
+	 * @param view
+	 * @param text
+	 */
+	private void onDoneTile(View view, String text) {
+		ControllerApp app = (ControllerApp) getApplication();
+		LinearLayout layout = (LinearLayout) findViewById(R.id.tilesLayout);
+		int i = layout.indexOfChild(view);
+		app.getPage().updateTile(text, i);
+		TextView textView = (TextView) view;
+		textView.setText(text);
+	}
 	
 	private void onDonePageEnding(TextView view, String text) {
 		app.getPage().setPageEnding(text);
@@ -422,7 +571,7 @@ public class ViewPageActivity extends Activity {
 		ArrayList<Page> pages = app.getStory().getPages();
 		Page toPage = app.getPage();
 		for (int i = 0; i < pages.size(); i++) {
-			if (toPageId == pages.get(i).getId()) {
+			if (toPageId.equals(pages.get(i).getId())) {
 				toPage = pages.get(i);
 				break;
 			}
@@ -445,7 +594,7 @@ public class ViewPageActivity extends Activity {
 		ArrayList<Page> pages = app.getStory().getPages();
 		int toPagePosition = -1;
 		for (int i = 0; i < pages.size(); i++) {
-			if (toPageId == pages.get(i).getId()) {
+			if (toPageId.equals(pages.get(i).getId())) {
 				toPagePosition = i;
 				break;
 			}
@@ -572,130 +721,6 @@ public class ViewPageActivity extends Activity {
 		view.setLayoutParams(lp);
 		view.setText(comment.getText());
 	    commentsLayout.addView(view);
-	}
-	
-	/**
-	 * Called to display a new tile at position i. If we are in editing mode,
-	 * add a click listener to allow user to edit the tile
-	 * @param i
-	 * @param tile
-	 */
-	public void addTile(int i, Tile tile) {
-		if (tile.getType() == "text") {
-			TextTile textTile = (TextTile) tile;
-			LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-					                                LinearLayout.LayoutParams.WRAP_CONTENT);
-			TextView view = new TextView(this);
-			
-			// Set what the tiles look like
-			view.setPadding(0, 5, 0, 6);
-			if (isEditing) {
-				/* Background to the layout is grey, so adding margins adds 
-				 * separators.
-				 */
-				lp.setMargins(0, 0, 0, 3);
-			} else {
-				view.setPadding(0, 5, 0, 9);
-			}
-			view.setBackgroundColor(0xFFFFFFFF);
-			view.setText(textTile.getText());
-			view.setLayoutParams(lp);
-
-			tilesLayout.addView(view, i);
-			
-			if (isEditing) {
-				view.setOnClickListener(new OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						onEditTile(v);
-					}
-				});
-				
-				view.setOnLongClickListener(new OnLongClickListener() {
-					@Override
-					public boolean onLongClick(View v) {
-						tileMenu(v);
-						return true;
-					}
-				});
-			}
-		} else {
-			Log.d("no such tile", "no tile of type " + tile.getType());
-		}
-	}
-	
-	/**
-	 * Brings up a menu with options of what to do to the decision.
-	 * @param view
-	 */
-	public void tileMenu(final View view){
-		final String[] titles = {"Edit","Delete"};
-		
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.story_options);
-        builder.setItems(titles, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int item) {
-            	switch(item){
-            	case(0):
-            		onEditTile(view);
-            		break;
-            	case(1):
-            		deleteTile(view);
-            		break;
-            	}
-            }
-        });
-        builder.show();
-    }
-	
-	/**
-	 * Removes the decision view and the decision in the model.
-	 * @param view
-	 */
-	private void deleteTile(View view) {
-		int whichTile = tilesLayout.indexOfChild(view);
-
-        app.getPage().getTiles().remove(whichTile);
-        tilesLayout.removeView(view);
-	}
-	
-	/**
-	 * Displays a dialog for editing a tile.
-	 * @param view
-	 */
-	private void onEditTile(View view) {
-		final TextView textView = (TextView) view;
-    	AlertDialog.Builder builder = new AlertDialog.Builder(this);
-    	final EditText alertEdit = new EditText(this);
-    	alertEdit.setText(textView.getText().toString());
-    	builder.setView(alertEdit);
-    	builder.setPositiveButton("Done", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-            	onDoneTile(textView, alertEdit.getText().toString());
-            	
-            }
-        })
-        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                
-            }
-        });
-        builder.show();
-	}
-	
-	/**
-	 * Called when user selects done on a tile editing dialog. Updates the 
-	 * view and the model.
-	 * @param view
-	 * @param text
-	 */
-	private void onDoneTile(View view, String text) {
-		ControllerApp app = (ControllerApp) getApplication();
-		LinearLayout layout = (LinearLayout) findViewById(R.id.tilesLayout);
-		int i = layout.indexOfChild(view);
-		app.getPage().updateTile(text, i);
-		TextView textView = (TextView) view;
-		textView.setText(text);
 	}
 
 }
